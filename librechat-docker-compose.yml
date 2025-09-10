@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  librechat:
+    image: ghcr.io/danny-avila/librechat-dev:latest
+    container_name: librechat
+    ports:
+      - "3080:3080"
+    depends_on:
+      - mongodb
+      - meilisearch
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3080
+      - MONGO_URI=mongodb://mongodb:27017/LibreChat
+      - MEILI_HOST=http://meilisearch:7700
+      - MEILI_HTTP_ADDR=meilisearch:7700
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VAPI_API_KEY=${VAPI_API_KEY}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - DOMAIN_CLIENT=http://206.189.203.174:3080
+      - DOMAIN_SERVER=http://206.189.203.174:3080
+      - ENDPOINTS=openai,custom
+      - DEBUG_LOGGING=true
+      - DEBUG_CONSOLE=true
+      - ALLOW_REGISTRATION=true
+      - ALLOW_SOCIAL_LOGIN=false
+      - ALLOW_SOCIAL_REGISTRATION=false
+      - SESSION_EXPIRY=1000 * 60 * 15
+      - REFRESH_TOKEN_EXPIRY=1000 * 60 * 60 * 24 * 7
+      - JWT_SECRET=16f8c0ef4a5d391b26034086c7c2efa6c5b7356a
+      - JWT_REFRESH_SECRET=eaa5191f2914e30b9387fd84e254e4ba6fc51b4654968a9b0803b456a54b8418
+    volumes:
+      - ./librechat.yaml:/app/librechat.yaml:ro
+      - ./logs:/app/api/logs
+      - ./images:/app/client/public/images
+      - ./uploads:/app/api/uploads
+    networks:
+      - librechat-network
+
+  mongodb:
+    container_name: chat-mongodb
+    image: mongo
+    restart: always
+    volumes:
+      - ./data-node:/data/db
+    command: mongod --noauth
+    networks:
+      - librechat-network
+
+  meilisearch:
+    container_name: chat-meilisearch
+    image: getmeili/meilisearch:v1.5.1
+    restart: always
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_HOST=http://meilisearch:7700
+      - MEILI_HTTP_ADDR=meilisearch:7700
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - ./meili_data:/meili_data
+    networks:
+      - librechat-network
+
+networks:
+  librechat-network:
+    driver: bridge

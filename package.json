@@ -1,0 +1,22 @@
+{
+  "name": "vapi-magentic-mcp-integration",
+  "version": "1.0.0",
+  "description": "MCP-based integration between Vapi.ai and Magentic-One",
+  "type": "module",
+  "main": "vapi_mcp_node.js",
+  "scripts": {
+    "start": "node vapi_mcp_node.js",
+    "dev": "node --watch vapi_mcp_node.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dockerode": "^4.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "keywords": ["vapi", "mcp", "magentic-one", "voice", "ai"],
+  "author": "AutoGen Team",
+  "license": "MIT"
+}

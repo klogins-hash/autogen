@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "vapi-mcp": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://mcp.vapi.ai/mcp",
+        "--header",
+        "Authorization: Bearer ${VAPI_TOKEN}"
+      ],
+      "env": {
+        "VAPI_TOKEN": "867ac81c-f57e-49ae-9003-25c88de12a15"
+      }
+    },
+    "magentic-one": {
+      "command": "ssh",
+      "args": ["hitsdifferent", "cd ~/magentic-mcp && python3 magentic_mcp_server.py"],
+      "env": {}
+    }
+  }
+}

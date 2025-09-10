@@ -1,0 +1,8 @@
+# Magentic-One General Agent System Dependencies
+autogen-agentchat
+autogen-ext[magentic-one,openai]
+python-dotenv
+playwright
+
+# Optional: For enhanced security with Docker
+# docker

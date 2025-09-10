@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  magentic-one:
+    build: .
+    container_name: magentic-one-agent
+    restart: unless-stopped
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+    volumes:
+      # Mount Docker socket for Docker-out-of-Docker (recommended for code execution)
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount for file operations (optional)
+      - ./workspace:/app/workspace
+    stdin_open: true
+    tty: true
+    networks:
+      - magentic-network
+
+networks:
+  magentic-network:
+    driver: bridge
+
+volumes:
+  workspace:
+    driver: local

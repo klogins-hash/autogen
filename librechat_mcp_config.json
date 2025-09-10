@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "magentic-one": {
+      "command": "python3",
+      "args": ["/path/to/magentic_mcp_server.py"],
+      "env": {
+        "DOCKER_HOST": "unix:///var/run/docker.sock"
+      }
+    }
+  }
+}

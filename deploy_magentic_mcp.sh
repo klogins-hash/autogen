@@ -13,9 +13,11 @@ echo "🚀 Deploying Magentic-One MCP Server to: $SERVER"
 # Create deployment package
 echo "📦 Creating MCP server deployment package..."
 tar -czf magentic-mcp-deploy.tar.gz \
+    enhanced_magentic_mcp_server.py \
     magentic_mcp_server.py \
     mcp_requirements.txt \
-    .env.production
+    test_mcp_server.py \
+    start_mcp_server.sh
 
 # Transfer files
 echo "📤 Transferring files to $SERVER..."
@@ -38,9 +40,13 @@ ssh $SERVER << 'EOF'
     # Make server executable
     chmod +x magentic_mcp_server.py
     
-    # Test MCP server
-    echo "🧪 Testing MCP server..."
-    timeout 5 python3 magentic_mcp_server.py || echo "MCP server test completed"
+    # Test enhanced MCP server
+    echo "🧪 Testing enhanced MCP server..."
+    python3 test_mcp_server.py
+    
+    # Make scripts executable
+    chmod +x enhanced_magentic_mcp_server.py
+    chmod +x start_mcp_server.sh
     
     echo "✅ MCP server setup complete!"
 EOF

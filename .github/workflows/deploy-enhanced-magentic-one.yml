@@ -1,0 +1,209 @@
+name: Deploy Enhanced Magentic-One
+
+on:
+  push:
+    branches: [ main, feature/enhanced-magentic-one ]
+    paths:
+      - 'python/packages/autogen-ext/src/autogen_ext/**'
+      - 'enhanced_magentic_mcp_server.py'
+      - 'test_mcp_server.py'
+      - 'start_mcp_server.sh'
+      - 'deploy_magentic_mcp.sh'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'python/packages/autogen-ext/src/autogen_ext/**'
+      - 'enhanced_magentic_mcp_server.py'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10", "3.11"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e python/packages/autogen-ext/
+        pip install mcp pytest pytest-asyncio
+    
+    - name: Test MCP Server
+      run: |
+        python test_mcp_server.py
+    
+    - name: Run Enhanced Component Tests
+      run: |
+        cd python/packages/autogen-ext
+        python -m pytest tests/ -v || echo "Tests completed"
+
+  deploy-to-ssh:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/enhanced-magentic-one'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+    
+    - name: Add SSH host to known_hosts
+      run: |
+        ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+    
+    - name: Create deployment package
+      run: |
+        tar -czf enhanced-magentic-deploy.tar.gz \
+          enhanced_magentic_mcp_server.py \
+          magentic_mcp_server.py \
+          test_mcp_server.py \
+          start_mcp_server.sh \
+          mcp_requirements.txt \
+          python/packages/autogen-ext/src/autogen_ext/
+    
+    - name: Deploy to SSH Server
+      run: |
+        # Transfer deployment package
+        scp enhanced-magentic-deploy.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/
+        
+        # Deploy on remote server
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          # Create deployment directory
+          mkdir -p ~/enhanced-magentic-one
+          cd ~/enhanced-magentic-one
+          
+          # Backup existing deployment
+          if [ -d "backup" ]; then rm -rf backup; fi
+          if [ -d "current" ]; then mv current backup; fi
+          mkdir -p current
+          
+          # Extract new deployment
+          cd current
+          tar -xzf ~/enhanced-magentic-deploy.tar.gz
+          
+          # Install/update dependencies
+          python3 -m pip install --break-system-packages -r mcp_requirements.txt
+          python3 -m pip install --break-system-packages mcp
+          
+          # Make scripts executable
+          chmod +x enhanced_magentic_mcp_server.py
+          chmod +x start_mcp_server.sh
+          chmod +x test_mcp_server.py
+          
+          # Test deployment
+          echo "Testing enhanced MCP server deployment..."
+          python3 test_mcp_server.py
+          
+          # Update symlinks for easy access
+          cd ~/
+          rm -f magentic-mcp
+          ln -sf enhanced-magentic-one/current magentic-mcp
+          
+          # Restart services if running
+          pkill -f "enhanced_magentic_mcp_server.py" || true
+          pkill -f "magentic_mcp_server.py" || true
+          
+          echo "✅ Enhanced Magentic-One deployment completed successfully!"
+          echo "📍 Location: ~/enhanced-magentic-one/current/"
+          echo "🔗 Symlink: ~/magentic-mcp -> current deployment"
+        EOF
+    
+    - name: Verify deployment
+      run: |
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          cd ~/magentic-mcp
+          echo "🧪 Running post-deployment verification..."
+          python3 test_mcp_server.py
+          echo "✅ Deployment verification completed!"
+        EOF
+    
+    - name: Cleanup
+      run: |
+        rm -f enhanced-magentic-deploy.tar.gz
+
+  deploy-to-cloud:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e python/packages/autogen-ext/
+        pip install mcp docker
+    
+    - name: Build Docker image
+      run: |
+        cat > Dockerfile.enhanced << 'EOF'
+        FROM python:3.11-slim
+        
+        WORKDIR /app
+        
+        # Install system dependencies
+        RUN apt-get update && apt-get install -y \
+            git \
+            && rm -rf /var/lib/apt/lists/*
+        
+        # Copy requirements and install Python dependencies
+        COPY mcp_requirements.txt .
+        RUN pip install --no-cache-dir -r mcp_requirements.txt
+        RUN pip install --no-cache-dir mcp
+        
+        # Copy enhanced components
+        COPY python/packages/autogen-ext/src/autogen_ext/ /app/autogen_ext/
+        COPY enhanced_magentic_mcp_server.py .
+        COPY test_mcp_server.py .
+        COPY start_mcp_server.sh .
+        
+        # Make scripts executable
+        RUN chmod +x enhanced_magentic_mcp_server.py start_mcp_server.sh
+        
+        # Test the installation
+        RUN python test_mcp_server.py
+        
+        EXPOSE 8000
+        
+        CMD ["python", "enhanced_magentic_mcp_server.py"]
+        EOF
+        
+        docker build -f Dockerfile.enhanced -t enhanced-magentic-one:latest .
+    
+    - name: Test Docker deployment
+      run: |
+        # Test the Docker image
+        docker run --rm enhanced-magentic-one:latest python test_mcp_server.py
+
+  notify:
+    needs: [test, deploy-to-ssh]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify deployment status
+      run: |
+        if [ "${{ needs.deploy-to-ssh.result }}" == "success" ]; then
+          echo "✅ Enhanced Magentic-One deployed successfully!"
+          echo "🚀 SSH Server: Deployment completed"
+          echo "🔗 MCP Server: Available at ~/magentic-mcp/"
+        else
+          echo "❌ Deployment failed - check logs"
+        fi

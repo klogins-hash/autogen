@@ -13,9 +13,11 @@
       }
     },
     "magentic-one": {
-      "command": "ssh",
-      "args": ["hitsdifferent", "cd ~/magentic-mcp && python3 magentic_mcp_server.py"],
-      "env": {}
+      "command": "/Users/franksimpson/CascadeProjects/autogen/venv-mcp/bin/python",
+      "args": ["/Users/franksimpson/CascadeProjects/autogen/enhanced_magentic_mcp_server.py"],
+      "env": {
+        "PYTHONPATH": "/Users/franksimpson/CascadeProjects/autogen:/Users/franksimpson/CascadeProjects/autogen/python/packages/autogen-ext/src"
+      }
     }
   }
 }
